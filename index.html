@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DISK — Celestial Oracle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-void: #070510;
+      --purple-dark: #120b29;
+      --purple-glow: #8a2be2;
+      --magenta-glow: #e024c3;
+      --silver-chrome: #e2e8f0;
+      --silver-light: #f8fafc;
+      --accent-cyan: #00f0ff;
+      --font-title: 'Orbitron', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-void);
+      color: var(--silver-chrome);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    canvas#stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Ambient Glow Backgrounds */
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.35;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .glow-1 {
+      top: -10%;
+      left: -10%;
+      width: 50vw;
+      height: 50vw;
+      background: radial-gradient(circle, var(--purple-glow), transparent);
+    }
+    .glow-2 {
+      bottom: -10%;
+      right: -10%;
+      width: 50vw;
+      height: 50vw;
+      background: radial-gradient(circle, var(--magenta-glow), transparent);
+    }
+
+    /* Layout Wrapper */
+    .app-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 900px;
+      padding: 2rem 1.5rem 4rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 2.5rem;
+      animation: fadeIn 1.2s ease-out;
+    }
+
+    .brand-title {
+      font-family: var(--font-title);
+      font-size: 3.5rem;
+      font-weight: 900;
+      letter-spacing: 0.6rem;
+      background: linear-gradient(135deg, #ffffff 0%, var(--silver-chrome) 40%, var(--purple-glow) 70%, var(--magenta-glow) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+      text-shadow: 0 0 30px rgba(138, 43, 226, 0.4);
+    }
+
+    .brand-subtitle {
+      font-family: var(--font-title);
+      font-size: 0.85rem;
+      letter-spacing: 0.35rem;
+      color: #a78bfa;
+      text-transform: uppercase;
+      margin-top: 0.5rem;
+      opacity: 0.9;
+    }
+
+    .date-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      padding: 0.4rem 1.2rem;
+      border-radius: 50px;
+      margin-top: 1.2rem;
+      font-size: 0.8rem;
+      letter-spacing: 0.15rem;
+      color: #c084fc;
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--accent-cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-cyan);
+      animation: pulse 2s infinite;
+    }
+
+    /* Section Step 1: Zodiac Selection */
+    .step-section {
+      width: 100%;
+      transition: all 0.5s ease;
+    }
+
+    .section-title {
+      font-family: var(--font-title);
+      font-size: 1.1rem;
+      letter-spacing: 0.2rem;
+      color: #e2e8f0;
+      margin-bottom: 1.5rem;
+      text-transform: uppercase;
+    }
+
+    .zodiac-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (max-width: 640px) {
+      .zodiac-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .brand-title {
+        font-size: 2.5rem;
+        letter-spacing: 0.4rem;
+      }
+    }
+
+    .zodiac-card {
+      background: rgba(18, 11, 41, 0.6);
+      border: 1px solid rgba(138, 43, 226, 0.25);
+      border-radius: 16px;
+      padding: 1rem 0.5rem;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .zodiac-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(224, 36, 195, 0.2), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .zodiac-card:hover {
+      transform: translateY(-5px) scale(1.03);
+      border-color: rgba(224, 36, 195, 0.6);
+      box-shadow: 0 10px 25px rgba(138, 43, 226, 0.3);
+    }
+
+    .zodiac-card:hover::before {
+      opacity: 1;
+    }
+
+    .zodiac-card.selected {
+      border-color: var(--accent-cyan);
+      background: rgba(138, 43, 226, 0.3);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+    }
+
+    .zodiac-symbol {
+      display: grid;
+      place-items: center;
+      width: 3.4rem;
+      height: 3.4rem;
+      margin-bottom: 0.25rem;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      border-radius: 50%;
+      background: rgba(0, 240, 255, 0.08);
+      color: #8ff8ff;
+      font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "Apple Symbols", sans-serif;
+      font-size: 2.2rem;
+      line-height: 1;
+      text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      z-index: 1;
+    }
+
+    .zodiac-card:hover .zodiac-symbol {
+      transform: rotate(-8deg) scale(1.08);
+      border-color: rgba(0, 240, 255, 0.8);
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.25);
+    }
+
+    .zodiac-name {
+      font-family: var(--font-title);
+      font-size: 0.75rem;
+      letter-spacing: 0.1rem;
+      color: #e2e8f0;
+      z-index: 1;
+    }
+
+    .zodiac-dates {
+      font-size: 0.65rem;
+      color: #94a3b8;
+      z-index: 1;
+    }
+
+    .daily-cards-section {
+      width: 100%;
+      margin: 1rem 0 2.5rem;
+      text-align: left;
+    }
+
+    .daily-cards-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .daily-cards-heading .section-title {
+      margin-bottom: 0;
+    }
+
+    .daily-cards-date {
+      color: #94a3b8;
+      font-size: 0.75rem;
+    }
+
+    .daily-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .daily-sign-card {
+      display: grid;
+      grid-template-columns: 2.8rem minmax(0, 1fr) 0.8rem;
+      align-items: start;
+      gap: 0.75rem;
+      min-height: 118px;
+      padding: 0.9rem;
+      text-align: left;
+      color: var(--silver-chrome);
+      background: rgba(18, 11, 41, 0.72);
+      border: 1px solid rgba(138, 43, 226, 0.3);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .daily-sign-card:hover,
+    .daily-sign-card:focus-visible {
+      transform: translateY(-3px);
+      border-color: rgba(0, 240, 255, 0.65);
+      background: rgba(24, 17, 52, 0.95);
+      outline: none;
+    }
+
+    .daily-sign-symbol {
+      display: grid;
+      place-items: center;
+      width: 2.8rem;
+      height: 2.8rem;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 50%;
+      color: #8ff8ff;
+      font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "Apple Symbols", sans-serif;
+      font-size: 1.65rem;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.55);
+    }
+
+    .daily-sign-name {
+      margin-bottom: 0.25rem;
+      font-family: var(--font-title);
+      font-size: 0.68rem;
+      letter-spacing: 0.08rem;
+      text-transform: uppercase;
+    }
+
+    .daily-card-title {
+      margin-bottom: 0.35rem;
+      color: #d8b4fe;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .daily-card-message {
+      color: #aeb8c8;
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .daily-color-dot {
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-top: 0.15rem;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--glow-color);
+    }
+
+    @media (max-width: 700px) {
+      .daily-cards-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 420px) {
+      .daily-cards-grid {
+        grid-template-columns: 1fr;
+      }
+      .daily-cards-heading {
+        align-items: start;
+        flex-direction: column;
+      }
+    }
+
+    /* Result Card Section */
+    .oracle-result {
+      display: none;
+      width: 100%;
+      animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .oracle-card-frame {
+      background: linear-gradient(145deg, rgba(25, 16, 56, 0.8), rgba(10, 6, 24, 0.95));
+      border: 1px solid rgba(226, 232, 240, 0.2);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 0 30px rgba(138, 43, 226, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .oracle-card-frame::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--purple-glow), var(--accent-cyan), var(--magenta-glow), transparent);
+    }
+
+    .sign-badge {
+      font-family: var(--font-title);
+      font-size: 0.85rem;
+      letter-spacing: 0.25rem;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      margin-bottom: 0.8rem;
+    }
+
+    .oracle-intention {
+      font-family: var(--font-title);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 1.2rem;
+      letter-spacing: 0.1rem;
+      text-shadow: 0 0 20px rgba(192, 132, 252, 0.5);
+    }
+
+    .oracle-message {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: #cbd5e1;
+      max-width: 650px;
+      margin: 0 auto 2.5rem;
+      font-weight: 300;
+    }
+
+    /* Palette Showcase Box */
+    .palette-recommendation {
+      background: rgba(7, 5, 16, 0.7);
+      border: 1px solid rgba(138, 43, 226, 0.3);
+      border-radius: 20px;
+      padding: 2rem 1.5rem;
+      margin-top: 1rem;
+      position: relative;
+    }
+
+    .palette-header {
+      font-family: var(--font-title);
+      font-size: 0.85rem;
+      letter-spacing: 0.2rem;
+      color: #a78bfa;
+      margin-bottom: 1.5rem;
+      text-transform: uppercase;
+    }
+
+    .palette-name-title {
+      font-family: var(--font-title);
+      font-size: 1.2rem;
+      color: #ffffff;
+      letter-spacing: 0.15rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Shadow Grid Layout Inside Palette */
+    .shadow-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.8rem;
+      max-width: 500px;
+      margin: 0 auto 1.5rem;
+      background: #0d081f;
+      padding: 1.2rem;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+    }
+
+    @media (max-width: 500px) {
+      .shadow-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .shadow-pan {
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      position: relative;
+      cursor: pointer;
+      transition: all 0.4s ease;
+    }
+
+    .shadow-pan.active-shade {
+      transform: scale(1.2);
+      border-color: #ffffff;
+      box-shadow: 0 0 20px var(--glow-color, var(--purple-glow));
+      z-index: 2;
+    }
+
+    .shadow-pan.active-shade::after {
+      content: '✦';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #ffffff;
+      font-size: 0.9rem;
+      text-shadow: 0 0 5px #000;
+    }
+
+    .shade-info-box {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .shade-name {
+      font-family: var(--font-title);
+      font-size: 1.1rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.1rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .shade-desc {
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    .btn-reset {
+      margin-top: 2rem;
+      background: transparent;
+      border: 1px solid rgba(226, 232, 240, 0.3);
+      color: var(--silver-chrome);
+      font-family: var(--font-title);
+      font-size: 0.75rem;
+      letter-spacing: 0.2rem;
+      padding: 0.8rem 2rem;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-reset:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-cyan);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="stars"></canvas>
+  <div class="glow-orb glow-1"></div>
+  <div class="glow-orb glow-2"></div>
+
+  <div class="app-container">
+    
+    <header>
+      <h1 class="brand-title">DISK</h1>
+      <p class="brand-subtitle">Makeup Beyond Reality</p>
+      <div class="date-badge">
+        <span class="pulse-dot"></span>
+        <span id="current-date">Sincronizando Oráculo...</span>
+      </div>
+    </header>
+
+    <!-- STEP 1: Seleccionar Signo -->
+    <section class="step-section" id="section-selector">
+      <h2 class="section-title">Sintoniza tu Energía Astral</h2>
+      <div class="zodiac-grid" id="zodiac-grid">
+        <!-- Generado dinámicamente -->
+      </div>
+      <section class="daily-cards-section" aria-labelledby="daily-cards-title">
+        <div class="daily-cards-heading">
+          <h2 class="section-title" id="daily-cards-title">Cartas del día</h2>
+          <span class="daily-cards-date" id="daily-cards-date"></span>
+        </div>
+        <div class="daily-cards-grid" id="daily-cards-grid"></div>
+      </section>
+    </section>
+
+    <!-- STEP 2: Resultado del Oráculo -->
+    <section class="oracle-result" id="section-result">
+      <div class="oracle-card-frame">
+        <div class="sign-badge" id="res-sign-name">Aries</div>
+        <div class="oracle-intention" id="res-intention">"Expansión Magnética"</div>
+        <p class="oracle-message" id="res-message">
+          Cargando lectura estelar del día...
+        </p>
+
+        <div class="palette-recommendation">
+          <div class="palette-header">Tu Ritual de Maquillaje Diario</div>
+          <div class="palette-name-title">Celestial Spectrum Palette</div>
+          
+          <div class="shadow-grid" id="shadow-grid">
+            <!-- 8 tonos de sombra creados dinámicamente -->
+          </div>
+
+          <div class="shade-info-box">
+            <div class="shade-name" id="shade-title">Sombra Recomendada</div>
+            <div class="shade-desc" id="shade-instruction">Aplica este tono en el párpado móvil para canalizar tu intención de hoy.</div>
+          </div>
+        </div>
+
+        <button class="btn-reset" onclick="resetOracle()">Consultar Otro Signo</button>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // Configuración de Tonos de la Paleta Celestial Spectrum
+    const PALETTE_SHADES = [
+      { id: 0, name: "Violeta Cósmico", hex: "#8b5cf6", glow: "#b794ff", type: "Morado luminoso", desc: "Difumina en la cuenca para un toque violeta intenso y lleno de dimensión." },
+      { id: 1, name: "Índigo Nocturno", hex: "#54358f", glow: "#8b68c7", type: "Morado profundo", desc: "Aplica en la esquina exterior para crear profundidad con un acabado misterioso." },
+      { id: 2, name: "Rosa Galáctico", hex: "#ec4899", glow: "#ff86c4", type: "Rosa vibrante", desc: "Presiona suavemente sobre el párpado para un acento rosa lleno de energía." },
+      { id: 3, name: "Rosa Nebulosa", hex: "#f3a6c8", glow: "#ffd0e5", type: "Rosa suave", desc: "Difumina este tono delicado para un acabado luminoso y romántico." },
+      { id: 4, name: "Azul Eléctrico", hex: "#168cff", glow: "#48b4ff", type: "Azul intenso de acento", desc: "Añade un toque como delineado o en el centro del párpado para un contraste vibrante." },
+      { id: 5, name: "Negro Eclipse", hex: "#111217", glow: "#626779", type: "Negro ahumado", desc: "Úsalo como delineado difuminado para definir la mirada con intensidad." },
+      { id: 6, name: "Blanco Estelar", hex: "#ffffff", glow: "#ffffff", type: "Blanco luminoso", desc: "Coloca un punto en el lagrimal o bajo el arco de la ceja para iluminar." },
+      { id: 7, name: "Plata Lunar", hex: "#bfc7d5", glow: "#e3e9f2", type: "Plateado metálico", desc: "Aplica en el centro del párpado para un destello plateado de efecto cromado." }
+    ];
+
+    // Signos Zodiacales con lecturas que cambian según la fecha
+    const ZODIACS = [
+      { id: "aries", name: "Aries", symbol: "♈", dates: "21 Mar - 19 Abr" },
+      { id: "tauro", name: "Tauro", symbol: "♉", dates: "20 Abr - 20 May" },
+      { id: "geminis", name: "Géminis", symbol: "♊", dates: "21 May - 20 Jun" },
+      { id: "cancer", name: "Cáncer", symbol: "♋", dates: "21 Jun - 22 Jul" },
+      { id: "leo", name: "Leo", symbol: "♌", dates: "23 Jul - 22 Ago" },
+      { id: "virgo", name: "Virgo", symbol: "♍", dates: "23 Ago - 22 Sep" },
+      { id: "libra", name: "Libra", symbol: "♎", dates: "23 Sep - 22 Oct" },
+      { id: "escorpio", name: "Escorpio", symbol: "♏", dates: "23 Oct - 21 Nov" },
+      { id: "sagitario", name: "Sagitario", symbol: "♐", dates: "22 Nov - 21 Dic" },
+      { id: "capricornio", name: "Capricornio", symbol: "♑", dates: "22 Dic - 19 Ene" },
+      { id: "acuario", name: "Acuario", symbol: "♒", dates: "20 Ene - 18 Feb" },
+      { id: "piscis", name: "Piscis", symbol: "♓", dates: "19 Feb - 20 Mar" }
+    ];
+
+    // Generador determinista de lecturas diarias basado en la fecha + signo
+    function getDailyOracle(signId) {
+      const today = new Date();
+      const dateKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+      const dayNumber = Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000);
+      
+      // Hash simple para semilla fija por día
+      let hash = 0;
+      const seedStr = dateKey + signId;
+      for (let i = 0; i < seedStr.length; i++) {
+        hash = seedStr.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const positiveHash = Math.abs(hash);
+
+      const intentions = [
+        "Confianza Absoluta", "Poder Intuitivo", "Claridad Estelar", 
+        "Renovación Creativa", "Límites Inquebrantables", "Fuerza Magnética",
+        "Alineación Cósmica", "Expresión Auténtica"
+      ];
+
+      const messages = [
+        "Hoy el universo demanda tu presencia sin pedir disculpas. Tus palabras y tu mirada sostienen una frecuencia que los demás no pueden ignorar. Toma la iniciativa: una conversación pendiente puede abrirte una puerta inesperada.",
+        "Tu intuición está más afilada que nunca. No analices en exceso las respuestas que ya sientes en el pecho; confía en tu primer impulso y dale espacio a esa idea que vuelve una y otra vez.",
+        "Momentos de transformación profunda requieren intenciones claras. Suelta el control de los detalles, elige lo que sí depende de ti y permite que tu energía fluya con naturalidad.",
+        "La creatividad no es algo que buscas, es algo que permites salir. Rompe las reglas convencionales en tu expresión cotidiana y atrévete a mostrar una versión más auténtica de ti.",
+        "Establecer límites sanos es tu mayor acto de magnetismo el día de hoy. Honra tu espacio vital, di que no cuando lo necesites y prioriza tu paz por encima del ruido.",
+        "Tu brillo no opaca a nadie; inspira a otros a encender su propia luz. Sal al mundo con seguridad, reconoce lo que ya has logrado y comparte tus ideas sin hacerte pequeña."
+      ];
+
+      const cardTitles = ["La Estrella", "La Fuerza", "El Sol", "La Sacerdotisa", "La Emperatriz", "El Mago", "La Templanza", "El Mundo"];
+      const cardMessages = [
+        "Una señal de esperanza te ayuda a mirar más lejos.",
+        "Tu paciencia también es una forma de poder.",
+        "Deja que tu alegría ocupe espacio hoy.",
+        "Escucha lo que todavía no has dicho en voz alta.",
+        "Nutre aquello que quieres ver crecer.",
+        "Ya tienes una herramienta para dar el primer paso.",
+        "Encuentra tu propio ritmo antes de responder.",
+        "Reconoce lo que completaste y prepárate para lo nuevo."
+      ];
+
+      const chosenIntention = intentions[positiveHash % intentions.length];
+      const cardIndex = positiveHash % cardTitles.length;
+      const chosenMessage = `${messages[positiveHash % messages.length]} Tu carta, ${cardTitles[cardIndex]}, te recuerda: ${cardMessages[cardIndex]}`;
+      let signHash = 0;
+      for (let i = 0; i < signId.length; i++) {
+        signHash = signId.charCodeAt(i) + ((signHash << 5) - signHash);
+      }
+      const chosenShadeIndex = ((dayNumber + Math.abs(signHash)) % PALETTE_SHADES.length);
+
+      return {
+        intention: chosenIntention,
+        message: chosenMessage,
+        shade: PALETTE_SHADES[chosenShadeIndex],
+        cardTitle: cardTitles[cardIndex],
+        cardMessage: cardMessages[cardIndex]
+      };
+    }
+
+    // Inicializar UI
+    document.addEventListener("DOMContentLoaded", () => {
+      // Mostrar fecha actual
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('current-date').innerText = now.toLocaleDateString('es-ES', options);
+      document.getElementById('daily-cards-date').innerText = now.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+
+      // Renderizar grid de signos
+      const grid = document.getElementById('zodiac-grid');
+      ZODIACS.forEach(z => {
+        const card = document.createElement('div');
+        card.className = 'zodiac-card';
+        card.onclick = () => selectZodiac(z);
+        card.innerHTML = `
+          <div class="zodiac-symbol">${z.symbol}</div>
+          <div class="zodiac-name">${z.name}</div>
+        `;
+        grid.appendChild(card);
+      });
+
+      const dailyCardsGrid = document.getElementById('daily-cards-grid');
+      ZODIACS.forEach(zodiac => {
+        const oracle = getDailyOracle(zodiac.id);
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'daily-sign-card';
+        card.setAttribute('aria-label', `Ver carta del día de ${zodiac.name}: ${oracle.cardTitle}`);
+        card.onclick = () => selectZodiac(zodiac);
+        card.innerHTML = `
+          <span class="daily-sign-symbol" aria-hidden="true">${zodiac.symbol}</span>
+          <span>
+            <span class="daily-sign-name">${zodiac.name}</span>
+            <span class="daily-card-title">${oracle.cardTitle}</span>
+            <span class="daily-card-message">${oracle.cardMessage}</span>
+          </span>
+          <span class="daily-color-dot" style="background:${oracle.shade.hex};--glow-color:${oracle.shade.glow}" title="Tono del día: ${oracle.shade.name}"></span>
+        `;
+        dailyCardsGrid.appendChild(card);
+      });
+
+      // Renderizar grid de sombras de la paleta
+      const shadowGrid = document.getElementById('shadow-grid');
+      PALETTE_SHADES.forEach((s) => {
+        const pan = document.createElement('div');
+        pan.className = 'shadow-pan';
+        pan.id = `shade-pan-${s.id}`;
+        pan.style.backgroundColor = s.hex;
+        pan.style.setProperty('--glow-color', s.glow);
+        shadowGrid.appendChild(pan);
+      });
+
+      initStars();
+    });
+
+    function selectZodiac(zodiac) {
+      const oracle = getDailyOracle(zodiac.id);
+
+      document.getElementById('res-sign-name').innerText = `${zodiac.symbol} ${zodiac.name}`;
+      document.getElementById('res-intention').innerText = `"${oracle.intention}"`;
+      document.getElementById('res-message').innerText = oracle.message;
+
+      // Actualizar sombra activa en la paleta
+      PALETTE_SHADES.forEach(s => {
+        const pan = document.getElementById(`shade-pan-${s.id}`);
+        if (s.id === oracle.shade.id) {
+          pan.classList.add('active-shade');
+        } else {
+          pan.classList.remove('active-shade');
+        }
+      });
+
+      document.getElementById('shade-title').innerText = `${oracle.shade.name} — (${oracle.shade.type})`;
+      document.getElementById('shade-instruction').innerText = oracle.shade.desc;
+
+      // Transición de secciones
+      document.getElementById('section-selector').style.display = 'none';
+      document.getElementById('section-result').style.display = 'block';
+    }
+
+    function resetOracle() {
+      document.getElementById('section-result').style.display = 'none';
+      document.getElementById('section-selector').style.display = 'block';
+    }
+
+    // Canvas de Estrellas Animadas en Fondo
+    function initStars() {
+      const canvas = document.getElementById('stars');
+      const ctx = canvas.getContext('2d');
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      const stars = Array.from({ length: 120 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 1.5,
+        alpha: Math.random(),
+        speed: Math.random() * 0.01 + 0.005
+      }));
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        stars.forEach(s => {
+          s.alpha += s.speed;
+          if (s.alpha > 1 || s.alpha < 0) s.speed = -s.speed;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(226, 232, 240, ${Math.abs(s.alpha)})`;
+          ctx.fill();
+        });
+        requestAnimationFrame(animate);
+      }
+      animate();
+    }
+  </script>
+</body>
+</html>
